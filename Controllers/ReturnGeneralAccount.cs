@@ -9,7 +9,7 @@ namespace IMAL_Services.Controllers
     {
       
         DLL_GetGeneralAccount DLL_Code = new DLL_GetGeneralAccount();
-        [HttpPost(Name = "CS_GetGeneralAccount")]
+        [HttpPost(Name = "CS_AccountDetails")]
        
         public ActionResult <string> OnGet([FromBody] CS_GetGeneralAccount x)
         {
