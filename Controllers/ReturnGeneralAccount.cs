@@ -18,7 +18,7 @@ namespace IMAL_Services.Controllers
             string password = x.PasswordImal;
             // string[] result = (string[])DLL_Code.ReturnGeneralAccount(accountRef,username,password);
             string result = DLL_Code.GetaccountDetails(accountRef, username, password);
-            return (result);
+            return Json(result);
          
         }
     }
