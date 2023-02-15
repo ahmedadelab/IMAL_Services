@@ -141,7 +141,7 @@ namespace IMAL_Services
                 using (StreamReader rd = new StreamReader(response.GetResponseStream()))
                 {
                     soapResult = rd.ReadToEnd();
-                   // Console.WriteLine(soapResult);
+                    Console.WriteLine(soapResult);
                     var str = XElement.Parse(soapResult);
                     XmlDocument xmlDoc = new XmlDocument();
                     xmlDoc.LoadXml(soapResult);
@@ -315,7 +315,7 @@ namespace IMAL_Services
                 using (StreamReader rd = new StreamReader(response.GetResponseStream()))
                 {
                     soapResult = rd.ReadToEnd();
-                    //Console.WriteLine(soapResult);
+                    Console.WriteLine(soapResult);
                     var str = XElement.Parse(soapResult);
                     XmlDocument xmlDoc = new XmlDocument();
                     xmlDoc.LoadXml(soapResult);
@@ -465,6 +465,10 @@ namespace IMAL_Services
                 Type = "";
                 currencyDescription = "";
                 branch = "";
+            }
+                else
+            {
+                Error = "";
             }
                 
                 datum.Add(new Datum
