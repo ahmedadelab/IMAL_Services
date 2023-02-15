@@ -425,7 +425,7 @@ namespace IMAL_Services
                     ArrayList ReturnSpecialCOdtion = ReturnSpicContition(accountref,username,password, branch);
                     specilcondition = ReturnSpecialCOdtion[0].ToString();
                  StatusDesc   = ReturnSpecialCOdtion[1].ToString();
-                    if (StatusDesc != "success")
+                    if (StatusDesc != "Success")
                     {
                         if(StatusDesc == "No records found.")
                         {
@@ -641,13 +641,15 @@ namespace IMAL_Services
                     {
                         XmlNodeList spicalConditionlist = xmlDoc.GetElementsByTagName("forbidTransactionDescription");
                         forbidTransactionDescription = spicalConditionlist[0].InnerXml;
+                        XmlNodeList elemlistDesc = xmlDoc.GetElementsByTagName("statusDesc");
+                        statusDesc = elemlistDesc[0].InnerXml;
 
                     }
                     else
                     {
                         XmlNodeList elemlistDesc = xmlDoc.GetElementsByTagName("statusDesc");
                         statusDesc = elemlistDesc[0].InnerXml;
-                        Error = statusDesc;
+                     
                     }
                 }
             }
