@@ -7,6 +7,14 @@ using static IMAL_Services.DLL_GetGeneralAccount;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.Extensions.Options;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics.Metrics;
+using System.Reflection.PortableExecutable;
+using System.Security.Principal;
+using System.Threading.Channels;
 
 namespace IMAL_Services
 
@@ -31,6 +39,19 @@ namespace IMAL_Services
             var MyConfig = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
             var GeneralAccountUrl = MyConfig.GetValue<string>("AppSettings:GetCIFUrl");
             HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(GeneralAccountUrl);
+            webRequest.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
+            webRequest.Headers.Add(@"SOAP:Action");
+            webRequest.ContentType = "text/xml;charset=\"utf-8\"";
+            webRequest.Accept = "text/xml";
+            webRequest.Method = "POST";
+            return webRequest;
+        }
+
+        public static HttpWebRequest CreateWebRequestGetSpicContition()
+        {
+            var MyConfig = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+            var GetSpicalCondition = MyConfig.GetValue<string>("AppSettings:GetSpicalCondition");
+            HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(GetSpicalCondition);
             webRequest.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
             webRequest.Headers.Add(@"SOAP:Action");
             webRequest.ContentType = "text/xml;charset=\"utf-8\"";
@@ -113,14 +134,14 @@ namespace IMAL_Services
             var cifIsComplete = "";
             var longNameArabic = "";
             var longNameEnglish = "";
-            var Error = "";
+            var Error = "NA";
             var customerName = "";
             using (WebResponse response = request.GetResponse())
             {
                 using (StreamReader rd = new StreamReader(response.GetResponseStream()))
                 {
                     soapResult = rd.ReadToEnd();
-                    Console.WriteLine(soapResult);
+                   // Console.WriteLine(soapResult);
                     var str = XElement.Parse(soapResult);
                     XmlDocument xmlDoc = new XmlDocument();
                     xmlDoc.LoadXml(soapResult);
@@ -148,22 +169,7 @@ namespace IMAL_Services
 
                             Error = "Account not Active";
                         }
-                        else
-                        {
-                            if (kyc != "Y")
-                            {
-                                Error = "Customer Need KYC";
-                            }
-                            else
-                            {
-                                if (cifIsComplete != "Y")
-                                {
-                                    Error = "Account Not Completed";
-                                }
-                            }
-                        }
-                        if (Error.Length == 0)
-                        {
+       
                             if (longNameArabic.Length != 0)
                             {
                                 customerName = longNameArabic;
@@ -175,11 +181,9 @@ namespace IMAL_Services
                                     customerName = longNameEnglish;
                                 }
                             }
-                        }
-                        else
-                        {
-                            Error = "NA";
-                        }
+                   
+            
+                       
                     }
                     else
                     {
@@ -304,12 +308,14 @@ namespace IMAL_Services
             string Error = "";
             string statusCode = "";
             string statusDesc = "";
+            string branchCode = "";
+        
             using (WebResponse response = request.GetResponse())
             {
                 using (StreamReader rd = new StreamReader(response.GetResponseStream()))
                 {
                     soapResult = rd.ReadToEnd();
-                    Console.WriteLine(soapResult);
+                    //Console.WriteLine(soapResult);
                     var str = XElement.Parse(soapResult);
                     XmlDocument xmlDoc = new XmlDocument();
                     xmlDoc.LoadXml(soapResult);
@@ -330,6 +336,8 @@ namespace IMAL_Services
 
                         XmlNodeList elemlist4 = xmlDoc.GetElementsByTagName("branch");
                         BranchName = elemlist4[0].InnerXml;
+                        XmlNodeList elemlist5 = xmlDoc.GetElementsByTagName("branchCode");
+                        branchCode = elemlist5[0].InnerXml;
                         if (status == "Active")
                         {
                             Error = "NA";
@@ -354,6 +362,7 @@ namespace IMAL_Services
             arrayList.Add(CifNo);
             arrayList.Add(currencyDescription);
             arrayList.Add(BranchName);
+            arrayList.Add(branchCode);
             return arrayList;
         }
 
@@ -367,6 +376,9 @@ namespace IMAL_Services
             string CustomerName = "";
             string Type = "";
             string Error = "";
+            string branchCode = "";
+            string specilcondition = "";
+            string StatusDesc = "";
             List<Datum> datum = new List<Datum>();
             //try
             //{
@@ -374,13 +386,14 @@ namespace IMAL_Services
                 ArrayList ResultGeneralAccount = ReturnGeneralAccount(accountref, username, password);
 
       
-                Error_GeneralAccount = ResultGeneralAccount[0].ToString();
+                    Error_GeneralAccount = ResultGeneralAccount[0].ToString();
                     CIFNo = ResultGeneralAccount[1].ToString();
                     currencyDescription = ResultGeneralAccount[2].ToString();
                     branch = ResultGeneralAccount[3].ToString();
+                    branchCode = ResultGeneralAccount[4].ToString();
 
-              
-                if (Error_GeneralAccount == "NA")
+
+            if (Error_GeneralAccount == "NA")
                 {
                    ArrayList ResultCIfDetails = returnCIFDetails(CIFNo, username, password);
 
@@ -407,19 +420,54 @@ namespace IMAL_Services
                     {
                         Error = Error_CIF;
                     }
-                  
+                    else
+                {
+                    ArrayList ReturnSpecialCOdtion = ReturnSpicContition(accountref,username,password, branch);
+                    specilcondition = ReturnSpecialCOdtion[0].ToString();
+                 StatusDesc   = ReturnSpecialCOdtion[1].ToString();
+                    if (StatusDesc != "success")
+                    {
+                        if(StatusDesc == "No records found.")
+                        {
+                            Error = "NA";
+                        }
+                    }
+                    else
+                    {
+                        if (specilcondition == "Forbid Both")
+                        {
+                            Error = specilcondition;
+                        }
+                        else
+                        {
+                            if (specilcondition == "Forbid Credit")
+                            {
+                                Error = specilcondition;
+
+                            }
+                          
+
+                        }
+                    }
+                    
                 }
+                  
+            }
                 else
                 {
                     Error = Error_GeneralAccount;
                 }
-            //}
-            //catch (Exception e)
-            //{
-            //   Console.WriteLine (e.Message.ToString());
-            //    Error = "Unexpected end of file has occurred";
-            //}
-            datum.Add(new Datum
+      
+                if(Error !="NA")
+            {
+                CustomerName = "";
+                CIFNo = "";
+                Type = "";
+                currencyDescription = "";
+                branch = "";
+            }
+                
+                datum.Add(new Datum
             {
                 CustomerName = CustomerName,
                 CustomerCIf = CIFNo,
@@ -430,6 +478,184 @@ namespace IMAL_Services
 
             });
             return JsonConvert.SerializeObject(datum);
+        }
+
+        public ArrayList ReturnSpicContition(string additionalRef, string username, string password,string BranchCode )
+        {
+            string StatusCode = "";
+         
+
+            string transactionTime = Convert.ToString(DateTime.Now);
+       
+            HttpWebRequest request = CreateWebRequestGetSpicContition();
+            XmlDocument soapEnvelopeXml = new XmlDocument();
+
+
+
+            soapEnvelopeXml.LoadXml(@"<soapenv:Envelope xmlns:soapenv=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:gen=""specialConditionWs"">
+    <soapenv:Header/>
+   <soapenv:Body>
+      <gen:returnSpecialConditionList>
+         <!--You may enter the following 23 items in any order-->
+         <!--Optional:-->
+         <serviceContext>
+            <!--You may enter the following 6 items in any order-->
+            <!--Optional:-->
+            <businessArea>Retail</businessArea>
+            <!--Optional:-->
+            <businessDomain>Products</businessDomain>
+            <!--Optional:-->
+            <operationName>returnSpecialConditionList</operationName>
+            <!--Optional:-->
+            <serviceDomain>SpecialCondition</serviceDomain>
+            <!--Optional:-->
+            <serviceID>9703</serviceID>
+            <!--Optional:-->
+            <version>1.0</version>
+         </serviceContext>
+         <companyCode>1</companyCode>
+         <branchCode>"+BranchCode+@"</branchCode>
+         <!--Optional:-->
+<!--         <lineNo>?</lineNo>
+-->
+         <!--Optional:-->
+<!--         <entityType>?</entityType>
+-->
+         <!--Optional:-->
+<!--         <cifNo>333270</cifNo>
+-->
+         <!--Optional:-->
+         
+          <account>
+<!--            <branch>1024</branch>-->
+<!--            <currency>818</currency>-->
+<!--            <accGl>211106</accGl>-->
+<!--            <serialNo>0</serialNo>-->
+<!--            <cif>333270</cif>-->
+
+            <additionalRef>"+additionalRef+@"</additionalRef>
+<!--            <ibanAccNo>?</ibanAccNo>
+-->
+         </account>
+ 
+
+         
+         <!-- <forbidTrx>?</forbidTrx>
+         <forbidProduct>?</forbidProduct>
+         <reasonEng>?</reasonEng>
+         <reasonArab>?</reasonArab>
+         <startingDate>?</startingDate>
+         <expiryDate>?</expiryDate>
+         <recordSource>?</recordSource>
+         <dateJudgement>?</dateJudgement>
+         <status>?</status>
+         <description>?</description>
+ -->
+         
+         
+         <!-- <sortOrder>
+            <sord>?</sord>
+            <sidx>?</sidx>
+         </sortOrder>
+ -->
+
+         
+         <!-- <pagination>
+            <pageSize>?</pageSize>
+            <pageNumber>?</pageNumber>
+            <totalCount>?</totalCount>
+         </pagination>
+ -->
+
+         
+         <!-- <dynamicFilter>
+            <allAny>All</allAny>
+            <filters>
+               <filter>
+                  <key>?</key>
+                  <operator>?</operator>
+                  <value>?</value>
+               </filter>
+            </filters>
+         </dynamicFilter>
+ -->
+         
+
+
+         
+         <requestContext>
+            <!--<requestID>?</requestID>-->
+            <!--<coreRequestTimeStamp>?</coreRequestTimeStamp>-->
+            <!--<requestKernelDetails>?</requestKernelDetails>-->
+         </requestContext>
+
+         
+         <requesterContext>
+            <channelID>1</channelID>
+            <hashKey>1</hashKey>
+              <langId>EN</langId>
+            <password>"+password+@"</password>
+            <requesterTimeStamp>2023-01-03T09:00:00</requesterTimeStamp>
+            <userID>"+username+@"</userID>
+         </requesterContext>
+
+         
+
+         <!--Optional:-->
+         <vendorContext>
+            <!--You may enter the following 3 items in any order-->
+            <!--Optional:-->
+            <license>Copyright 2018 Path Solutions. All Rights Reserved</license>
+            <!--Optional:-->
+            <providerCompanyName>Path Solutions</providerCompanyName>
+            <!--Optional:-->
+            <providerID>IMAL</providerID>
+         </vendorContext>
+      </gen:returnSpecialConditionList>
+   </soapenv:Body>
+</soapenv:Envelope>
+");
+            string soapResult = "";
+
+            using (Stream stream = request.GetRequestStream())
+            {
+                soapEnvelopeXml.Save(stream);
+            }
+            string forbidTransactionDescription = "";
+            string Error = "";
+            string statusDesc = "";
+
+            using (WebResponse response = request.GetResponse())
+            {
+                using (StreamReader rd = new StreamReader(response.GetResponseStream()))
+                {
+                    soapResult = rd.ReadToEnd();
+                    Console.WriteLine(soapResult);
+                    var str = XElement.Parse(soapResult);
+                    XmlDocument xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(soapResult);
+                    XmlNodeList elemlistCode = xmlDoc.GetElementsByTagName("statusCode");
+                    StatusCode = elemlistCode[0].InnerXml;
+
+                    if (StatusCode == "0")
+                    {
+                        XmlNodeList spicalConditionlist = xmlDoc.GetElementsByTagName("forbidTransactionDescription");
+                        forbidTransactionDescription = spicalConditionlist[0].InnerXml;
+
+                    }
+                    else
+                    {
+                        XmlNodeList elemlistDesc = xmlDoc.GetElementsByTagName("statusDesc");
+                        statusDesc = elemlistDesc[0].InnerXml;
+                        Error = statusDesc;
+                    }
+                }
+            }
+
+            ArrayList arrayList = new ArrayList();
+            arrayList.Add(forbidTransactionDescription);
+            arrayList.Add(statusDesc);
+            return arrayList;
         }
         public class Datum
         {
